@@ -61,6 +61,7 @@ struct StateContext {
     total_active_balance: u64,
     churn_limit: u64,
     fork_name: ForkName,
+    penalty_factors: [u64; 3],
 }
 
 struct RewardsAndPenaltiesContext {
@@ -91,6 +92,7 @@ pub struct ValidatorInfo {
     pub previous_epoch_participation: ParticipationFlags,
     // Used for updating the progressive balances cache for next epoch.
     pub current_epoch_participation: ParticipationFlags,
+    pub participating_slot: usize,
 }
 
 impl ValidatorInfo {
@@ -133,6 +135,11 @@ pub fn process_epoch_single_pass<E: EthSpec>(
         total_active_balance,
         churn_limit,
         fork_name,
+        penalty_factors: [
+            state.compute_penalty_factors(0),
+            state.compute_penalty_factors(1),
+            state.compute_penalty_factors(2),
+        ],
     };
 
     // Contexts that require immutable access to `state`.
@@ -208,6 +215,7 @@ pub fn process_epoch_single_pass<E: EthSpec>(
             0
         };
 
+        let committees_per_slot = state.committee_cache(RelativeEpoch::Previous);
         let validator_info = &ValidatorInfo {
             index,
             effective_balance: validator.effective_balance,
@@ -218,6 +226,10 @@ pub fn process_epoch_single_pass<E: EthSpec>(
             is_active_previous_epoch,
             previous_epoch_participation,
             current_epoch_participation,
+            participating_slot: state
+                .committee_cache(RelativeEpoch::Previous)
+                .shuffled_position(index)
+                % committees_per_slot,
         };
 
         if current_epoch != E::genesis_epoch() {
@@ -388,7 +400,13 @@ fn get_flag_index_delta(
             )?;
         }
     } else if flag_index != TIMELY_HEAD_FLAG_INDEX {
-        delta.penalize(base_reward.safe_mul(weight)?.safe_div(WEIGHT_DENOMINATOR)?)?;
+        let slot = validator_info.participating_slot;
+        let penalty_factor = state_ctxt.penalty_factors[flag_index];
+        delta.penalize(
+            penalty_factor
+                .safe_mul(base_reward.safe_mul(weight))?
+                .safe_div(WEIGHT_DENOMINATOR)?,
+        )?;
     }
     Ok(())
 }

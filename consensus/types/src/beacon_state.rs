@@ -1,4 +1,5 @@
 use self::committee_cache::get_active_validator_indices;
+use crate::consts::electra::{MAX_PENALTY_FACTOR, PENALTY_ADJUSTMENT_FACTOR};
 use crate::historical_summary::HistoricalSummary;
 use crate::test_utils::TestRandom;
 use crate::*;
@@ -20,6 +21,7 @@ use swap_or_not_shuffle::compute_shuffled_index;
 use test_random_derive::TestRandom;
 use tree_hash::TreeHash;
 use tree_hash_derive::TreeHash;
+use typenum::U3;
 
 pub use self::committee_cache::{
     compute_committee_index_in_epoch, compute_committee_range_in_epoch, epoch_committee_count,
@@ -158,6 +160,7 @@ pub enum Error {
     MissingImmutableValidator(usize),
     IndexNotSupported(usize),
     InvalidFlagIndex(usize),
+    InvalidSlotIndex(usize),
     MerkleTreeError(merkle_proof::MerkleTreeError),
 }
 
@@ -500,7 +503,8 @@ where
     #[test_random(default)]
     #[superstruct(only(Electra))]
     pub pending_consolidations: List<PendingConsolidation, E::PendingConsolidationsLimit>,
-
+    #[superstruct(only(Electra))]
+    pub net_excess_penalties: Vector<u64, U3>,
     // Caching (not in the spec)
     #[serde(skip_serializing, skip_deserializing)]
     #[ssz(skip_serializing, skip_deserializing)]
@@ -608,6 +612,38 @@ impl<E: EthSpec> BeaconState<E> {
             slashings_cache: SlashingsCache::default(),
             epoch_cache: EpochCache::default(),
         })
+    }
+
+    pub fn compute_penalty_factor(&self, flag_index: usize) -> Result<(u64, u64), Error> {
+        let mut net_excess_penalties = self
+            .net_excess_penalties()?
+            .get(flag_index)
+            .unwrap()
+            .clone();
+        let start_slot: u64 = self
+            .slot()
+            .epoch(E::slots_per_epoch())
+            .start_slot(E::slots_per_epoch())
+            .into();
+        let mut penalty_factor = 0;
+        for slot in start_slot..self.slot().into() {
+            let balance = self
+                .progressive_balances_cache()
+                .get_inner()?
+                .current_epoch_cache;
+            let total_balance_per_slot = balance.total_flag_balance(0).unwrap()
+                + balance.total_flag_balance(1).unwrap()
+                + balance.total_flag_balance(2).unwrap();
+            let participating_balance = balance.per_slot_flag_balance(slot as usize, flag_index)?;
+            penalty_factor = std::cmp::min(
+                ((total_balance_per_slot - participating_balance) * PENALTY_ADJUSTMENT_FACTOR)
+                    / (net_excess_penalties * total_balance_per_slot + 1),
+                MAX_PENALTY_FACTOR,
+            );
+
+            net_excess_penalties = std::cmp::max(1, net_excess_penalties + penalty_factor) - 1;
+        }
+        Ok((penalty_factor, net_excess_penalties))
     }
 
     /// Returns the name of the fork pertaining to `self`.

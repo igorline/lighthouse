@@ -33,6 +33,7 @@ pub struct EpochTotalBalances {
     ///
     /// A flag balance is only incremented if a validator is in that flag set.
     pub total_flag_balances: [Balance; NUM_FLAG_INDICES],
+    pub per_slot_flag_balances: [[Balance; NUM_FLAG_INDICES]; 32],
 }
 
 impl EpochTotalBalances {
@@ -41,12 +42,27 @@ impl EpochTotalBalances {
 
         Self {
             total_flag_balances: [zero_balance; NUM_FLAG_INDICES],
+            per_slot_flag_balances: [[zero_balance; NUM_FLAG_INDICES]; 32],
         }
     }
 
     /// Returns the total balance of attesters who have `flag_index` set.
     pub fn total_flag_balance(&self, flag_index: usize) -> Result<u64, BeaconStateError> {
         self.total_flag_balances
+            .get(flag_index)
+            .map(Balance::get)
+            .ok_or(BeaconStateError::InvalidFlagIndex(flag_index))
+    }
+
+    /// Returns per slot balance of attesters who have `flag_index` set.
+    pub fn per_slot_flag_balance(
+        &self,
+        slot: usize,
+        flag_index: usize,
+    ) -> Result<u64, BeaconStateError> {
+        self.per_slot_flag_balances
+            .get(slot)
+            .ok_or(BeaconStateError::InvalidSlotIndex(slot))?
             .get(flag_index)
             .map(Balance::get)
             .ok_or(BeaconStateError::InvalidFlagIndex(flag_index))
@@ -60,6 +76,7 @@ impl EpochTotalBalances {
             .ok_or(BeaconStateError::InvalidFlagIndex(flag_index))
     }
 
+    // TODO: update balances on all of those fn
     pub fn on_new_attestation(
         &mut self,
         is_slashed: bool,
@@ -77,6 +94,7 @@ impl EpochTotalBalances {
         Ok(())
     }
 
+    // TODO: Add slot index
     pub fn on_slashing(
         &mut self,
         participation_flags: ParticipationFlags,
@@ -276,7 +294,7 @@ impl ProgressiveBalancesCache {
             .ok_or(BeaconStateError::ProgressiveBalancesCacheNotInitialized)
     }
 
-    fn get_inner(&self) -> Result<&Inner, BeaconStateError> {
+    pub fn get_inner(&self) -> Result<&Inner, BeaconStateError> {
         self.inner
             .as_ref()
             .ok_or(BeaconStateError::ProgressiveBalancesCacheNotInitialized)
