@@ -614,12 +614,9 @@ impl<E: EthSpec> BeaconState<E> {
         })
     }
 
+    #[allow(clippy::arithmetic_side_effects)]
     pub fn compute_penalty_factor(&self, flag_index: usize) -> Result<(u64, u64), Error> {
-        let mut net_excess_penalties = self
-            .net_excess_penalties()?
-            .get(flag_index)
-            .unwrap()
-            .clone();
+        let mut net_excess_penalties = *self.net_excess_penalties()?.get(flag_index).unwrap();
         let start_slot: u64 = self
             .slot()
             .epoch(E::slots_per_epoch())
@@ -631,9 +628,7 @@ impl<E: EthSpec> BeaconState<E> {
                 .progressive_balances_cache()
                 .get_inner()?
                 .current_epoch_cache;
-            let total_balance_per_slot = balance.total_flag_balance(0).unwrap()
-                + balance.total_flag_balance(1).unwrap()
-                + balance.total_flag_balance(2).unwrap();
+            let total_balance_per_slot = balance.total_flag_balance(flag_index).unwrap();
             let participating_balance = balance.per_slot_flag_balance(slot as usize, flag_index)?;
             penalty_factor = std::cmp::min(
                 ((total_balance_per_slot - participating_balance) * PENALTY_ADJUSTMENT_FACTOR)
