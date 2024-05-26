@@ -21,7 +21,6 @@ use swap_or_not_shuffle::compute_shuffled_index;
 use test_random_derive::TestRandom;
 use tree_hash::TreeHash;
 use tree_hash_derive::TreeHash;
-use typenum::U3;
 
 pub use self::committee_cache::{
     compute_committee_index_in_epoch, compute_committee_range_in_epoch, epoch_committee_count,
@@ -503,8 +502,9 @@ where
     #[test_random(default)]
     #[superstruct(only(Electra))]
     pub pending_consolidations: List<PendingConsolidation, E::PendingConsolidationsLimit>,
+    #[test_random(default)]
     #[superstruct(only(Electra))]
-    pub net_excess_penalties: Vector<u64, U3>,
+    pub net_excess_penalties: Vector<u64, E::NetExcessPenaltiesLimit>,
     // Caching (not in the spec)
     #[serde(skip_serializing, skip_deserializing)]
     #[ssz(skip_serializing, skip_deserializing)]
@@ -627,7 +627,7 @@ impl<E: EthSpec> BeaconState<E> {
             .into();
         let mut penalty_factor = 0;
         for slot in start_slot..self.slot().into() {
-            let balance = self
+            let balance = &self
                 .progressive_balances_cache()
                 .get_inner()?
                 .current_epoch_cache;

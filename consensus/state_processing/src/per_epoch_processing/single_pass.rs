@@ -136,15 +136,21 @@ pub fn process_epoch_single_pass<E: EthSpec>(
         churn_limit,
         fork_name,
         penalty_factors: [
-            state.compute_penalty_factors(0),
-            state.compute_penalty_factors(1),
-            state.compute_penalty_factors(2),
+            state.compute_penalty_factor(0)?.0,
+            state.compute_penalty_factor(1)?.0,
+            state.compute_penalty_factor(2)?.0,
         ],
     };
 
     // Contexts that require immutable access to `state`.
     let slashings_ctxt = &SlashingsContext::new(state, state_ctxt, spec)?;
     let mut next_epoch_cache = PreEpochCache::new_for_next_epoch(state)?;
+
+    let committee_prev_epoch = state.committee_cache(RelativeEpoch::Previous)?;
+    let committees_per_slot = committee_prev_epoch.committees_per_slot() as usize;
+    let shuffled_positions = (0..state.validators().len())
+        .map(|index| committee_prev_epoch.shuffled_position(index).unwrap())
+        .collect::<Vec<_>>();
 
     // Split the state into several disjoint mutable borrows.
     let (
@@ -215,7 +221,6 @@ pub fn process_epoch_single_pass<E: EthSpec>(
             0
         };
 
-        let committees_per_slot = state.committee_cache(RelativeEpoch::Previous);
         let validator_info = &ValidatorInfo {
             index,
             effective_balance: validator.effective_balance,
@@ -226,10 +231,7 @@ pub fn process_epoch_single_pass<E: EthSpec>(
             is_active_previous_epoch,
             previous_epoch_participation,
             current_epoch_participation,
-            participating_slot: state
-                .committee_cache(RelativeEpoch::Previous)
-                .shuffled_position(index)
-                % committees_per_slot,
+            participating_slot: shuffled_positions.get(index).unwrap() % committees_per_slot,
         };
 
         if current_epoch != E::genesis_epoch() {
@@ -400,11 +402,10 @@ fn get_flag_index_delta(
             )?;
         }
     } else if flag_index != TIMELY_HEAD_FLAG_INDEX {
-        let slot = validator_info.participating_slot;
         let penalty_factor = state_ctxt.penalty_factors[flag_index];
         delta.penalize(
             penalty_factor
-                .safe_mul(base_reward.safe_mul(weight))?
+                .safe_mul(base_reward.safe_mul(weight)?)?
                 .safe_div(WEIGHT_DENOMINATOR)?,
         )?;
     }

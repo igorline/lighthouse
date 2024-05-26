@@ -4,7 +4,7 @@ use safe_arith::SafeArith;
 use serde::{Deserialize, Serialize};
 use ssz_types::typenum::{
     bit::B0, UInt, U0, U1, U1024, U1048576, U1073741824, U1099511627776, U128, U131072, U134217728,
-    U16, U16777216, U2, U2048, U256, U262144, U32, U4, U4096, U512, U6, U625, U64, U65536, U8,
+    U16, U16777216, U2, U2048, U256, U262144, U3, U32, U4, U4096, U512, U6, U625, U64, U65536, U8,
     U8192,
 };
 use ssz_types::typenum::{U17, U9};
@@ -146,6 +146,7 @@ pub trait EthSpec:
     type MaxAttesterSlashingsElectra: Unsigned + Clone + Sync + Send + Debug + PartialEq;
     type MaxAttestationsElectra: Unsigned + Clone + Sync + Send + Debug + PartialEq;
     type MaxWithdrawalRequestsPerPayload: Unsigned + Clone + Sync + Send + Debug + PartialEq;
+    type NetExcessPenaltiesLimit: Unsigned + Clone + Sync + Send + Debug + PartialEq;
 
     fn default_spec() -> ChainSpec;
 
@@ -389,6 +390,7 @@ impl EthSpec for MainnetEthSpec {
     type MaxAttesterSlashingsElectra = U1;
     type MaxAttestationsElectra = U8;
     type MaxWithdrawalRequestsPerPayload = U16;
+    type NetExcessPenaltiesLimit = U3;
 
     fn default_spec() -> ChainSpec {
         ChainSpec::mainnet()
@@ -422,6 +424,7 @@ impl EthSpec for MinimalEthSpec {
     type PendingConsolidationsLimit = U64;
     type MaxDepositReceiptsPerPayload = U4;
     type MaxWithdrawalRequestsPerPayload = U2;
+    type NetExcessPenaltiesLimit = U3;
 
     params_from_eth_spec!(MainnetEthSpec {
         JustificationBitsLength,
@@ -508,6 +511,7 @@ impl EthSpec for GnosisEthSpec {
     type MaxAttesterSlashingsElectra = U1;
     type MaxAttestationsElectra = U8;
     type MaxWithdrawalRequestsPerPayload = U16;
+    type NetExcessPenaltiesLimit = U3;
 
     fn default_spec() -> ChainSpec {
         ChainSpec::gnosis()

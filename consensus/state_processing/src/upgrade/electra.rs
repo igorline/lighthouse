@@ -95,6 +95,8 @@ pub fn upgrade_to_electra<E: EthSpec>(
         exit_cache: mem::take(&mut pre.exit_cache),
         slashings_cache: mem::take(&mut pre.slashings_cache),
         epoch_cache: EpochCache::default(),
+        // TODO: Should initialize to the average of the previous epoch + some delta
+        net_excess_penalties: <_>::default(),
     });
     *post.exit_balance_to_consume_mut()? = post.get_activation_exit_churn_limit(spec)?;
     *post.consolidation_balance_to_consume_mut()? = post.get_consolidation_churn_limit(spec)?;

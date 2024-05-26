@@ -19,7 +19,7 @@ pub struct ProgressiveBalancesCache {
 }
 
 #[derive(Debug, PartialEq, Arbitrary, Clone)]
-struct Inner {
+pub struct Inner {
     pub current_epoch: Epoch,
     pub previous_epoch_cache: EpochTotalBalances,
     pub current_epoch_cache: EpochTotalBalances,
