@@ -25,3 +25,7 @@ pub mod bellatrix {
 pub mod deneb {
     pub use crate::VERSIONED_HASH_VERSION_KZG;
 }
+pub mod electra {
+    pub const PENALTY_ADJUSTMENT_FACTOR: u64 = 4096;
+    pub const MAX_PENALTY_FACTOR: u64 = 4;
+}

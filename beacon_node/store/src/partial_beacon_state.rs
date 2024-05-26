@@ -141,6 +141,8 @@ where
         List<PendingPartialWithdrawal, E::PendingPartialWithdrawalsLimit>,
     #[superstruct(only(Electra))]
     pub pending_consolidations: List<PendingConsolidation, E::PendingConsolidationsLimit>,
+    #[superstruct(only(Electra))]
+    pub net_excess_penalties: Vector<u64, E::NetExcessPenaltiesLimit>,
 }
 
 /// Implement the conversion function from BeaconState -> PartialBeaconState.
@@ -293,7 +295,8 @@ impl<E: EthSpec> PartialBeaconState<E> {
                     earliest_consolidation_epoch,
                     pending_balance_deposits,
                     pending_partial_withdrawals,
-                    pending_consolidations
+                    pending_consolidations,
+                    net_excess_penalties
                 ],
                 [historical_summaries]
             ),
@@ -566,7 +569,8 @@ impl<E: EthSpec> TryInto<BeaconState<E>> for PartialBeaconState<E> {
                     earliest_consolidation_epoch,
                     pending_balance_deposits,
                     pending_partial_withdrawals,
-                    pending_consolidations
+                    pending_consolidations,
+                    net_excess_penalties
                 ],
                 [historical_summaries]
             ),
